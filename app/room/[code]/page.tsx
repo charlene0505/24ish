@@ -16,7 +16,7 @@ interface Room {
   durationMinutes: number | null;
 }
 interface Participant { nickname: string; slotIndex: number; }
-interface Upload { slotIndex: number; hourBucket: string; url: string; thumbnailUrl: string; nickname: string; uploadedAt: string; }
+interface Upload { slotIndex: number; hourBucket: string; url: string; thumbnailUrl: string; nickname: string; uploadedAt: string; posX: number; posY: number; }
 interface Session { code: string; nickname: string; slotIndex: number; }
 
 function useCountdown(bucketMinutes: number) {
@@ -96,6 +96,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           if (prev.find((p) => p.nickname === payload.nickname)) return prev;
           return [...prev, { nickname: payload.nickname, slotIndex: payload.slotIndex }];
         });
+      } else if (payload.type === "position") {
+        setUploads((prev) =>
+          prev.map((u) =>
+            u.slotIndex === payload.slotIndex && u.hourBucket === payload.hourBucket
+              ? { ...u, posX: payload.posX, posY: payload.posY }
+              : u,
+          ),
+        );
       }
     };
     return () => es.close();
@@ -129,7 +137,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   function handleUploaded(slotIndex: number, upload: Upload) {
     setUploads((prev) => {
       const next = prev.filter((u) => !(u.slotIndex === slotIndex && u.hourBucket === upload.hourBucket));
-      return [...next, { ...upload, slotIndex }];
+      return [...next, { ...upload, slotIndex, posX: 50, posY: 50 }];
     });
   }
 
@@ -231,6 +239,16 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                       currentHourBucket={currentHourBucket}
                       roomCode={code.toUpperCase()}
                       onUploaded={(u) => handleUploaded(slotIndex, u)}
+                      onPositionChange={(posX, posY) => {
+                        if (!currentUpload) return;
+                        setUploads((prev) =>
+                          prev.map((u) =>
+                            u.slotIndex === slotIndex && u.hourBucket === currentHourBucket
+                              ? { ...u, posX, posY }
+                              : u,
+                          ),
+                        );
+                      }}
                       roomActive={roomActive}
                     />
                   );
@@ -242,7 +260,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
       {/* Status bar — pinned to bottom, clears browser nav bar */}
       <div
-        className="bg-neutral-900 border-t border-neutral-800 px-4 pt-3 flex flex-col items-center gap-2"
+        className={`px-4 pt-3 flex flex-col items-center justify-center gap-1${(roomEnded && !isCreator) || roomActive ? " bg-neutral-900" : ""}`}
         style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
       >
         {roomActive && (
@@ -251,8 +269,20 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             <span className="font-mono font-bold text-white text-base">{countdown}</span>
           </span>
         )}
-        {roomEnded && (
+        {roomEnded && !isCreator && (
           <span className="text-yellow-400 font-medium text-sm">Room ended</span>
+        )}
+        {roomEnded && isCreator && (
+          <>
+            {error && <span className="text-red-400 text-xs">{error}</span>}
+            <button
+              onClick={handleStart}
+              disabled={starting}
+              className="w-48 shrink-0 bg-fuchsia-400 hover:bg-fuchsia-500 active:bg-fuchsia-600 disabled:opacity-50 text-black font-semibold py-2 rounded-xl transition-colors"
+            >
+              {starting ? "Restarting…" : "Restart Room"}
+            </button>
+          </>
         )}
         {!roomStarted && isCreator && (
           <>

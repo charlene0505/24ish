@@ -9,6 +9,9 @@ const UploadSchema = new Schema({
   url: { type: String, required: true },
   thumbnailUrl: { type: String, required: true },
   uploadedAt: { type: Date, default: Date.now },
+  // Pan position (0–100 each, default 50 = centre)
+  posX: { type: Number, default: 50 },
+  posY: { type: Number, default: 50 },
 });
 
 UploadSchema.index({ roomCode: 1, slotIndex: 1, hourBucket: 1 }, { unique: true });

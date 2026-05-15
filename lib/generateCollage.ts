@@ -16,6 +16,9 @@ export interface CollageUpload {
   slotIndex: number;
   /** Use full-res url for downloads, thumbnailUrl for previews */
   url: string;
+  /** Pan position 0–100 (default 50 = centre) */
+  posX?: number;
+  posY?: number;
 }
 
 // Fixed 4:5 canvas — suits Instagram portrait and most social media formats.
@@ -35,9 +38,20 @@ export async function generateCollage(
   const W = CANVAS_W;
   const H = CANVAS_H;
 
-  // Tile dimensions computed from the fixed canvas so they always fill it.
-  const tileW = (W - PAD * 2 - (cols - 1) * GAP) / cols;
-  const tileH = (H - PAD * 2 - HEADER - (rows - 1) * GAP) / rows;
+  // Tiles are always 1:1 square — matching the live-grid tiles which are always square
+  // regardless of layout (wrapper aspectRatio cols/rows divided by cols×rows cancels out).
+  // Use the binding constraint (width or height) then centre the grid in the remaining space.
+  const maxTileByW = (W - PAD * 2 - (cols - 1) * GAP) / cols;
+  const maxTileByH = (H - PAD * 2 - HEADER - (rows - 1) * GAP) / rows;
+  const tileSize   = Math.min(maxTileByW, maxTileByH); // square
+  const tileW      = tileSize;
+  const tileH      = tileSize;
+
+  // Centre the grid horizontally and vertically within the available area
+  const gridW  = cols * tileSize + (cols - 1) * GAP;
+  const gridH  = rows * tileSize + (rows - 1) * GAP;
+  const gridX  = (W - gridW) / 2;
+  const gridY  = PAD + HEADER + (H - PAD * 2 - HEADER - gridH) / 2;
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -74,8 +88,8 @@ export async function generateCollage(
   for (let i = 0; i < capacity; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const x = PAD + col * (tileW + GAP);
-    const y = PAD + HEADER + row * (tileH + GAP);
+    const x = gridX + col * (tileSize + GAP);
+    const y = gridY + row * (tileSize + GAP);
 
     const participant = participants.find((p) => p.slotIndex === i);
     const img = images[i];
@@ -86,14 +100,20 @@ export async function generateCollage(
     ctx.fill();
 
     if (img) {
-      // Object-cover: scale to fill tile, crop centre
+      // Object-cover with pan: scale to fill tile, then offset by posX/posY
       ctx.save();
       roundRect(ctx, x, y, tileW, tileH, 18);
       ctx.clip();
       const scale = Math.max(tileW / img.width, tileH / img.height);
       const sw = img.width * scale;
       const sh = img.height * scale;
-      ctx.drawImage(img, x + (tileW - sw) / 2, y + (tileH - sh) / 2, sw, sh);
+      const upload = uploads.find((u) => u.slotIndex === i);
+      const pxPct = (upload?.posX ?? 50) / 100;
+      const pyPct = (upload?.posY ?? 50) / 100;
+      // Offset: 0% → image left/top aligned, 100% → image right/bottom aligned
+      const imgX = x + (tileW - sw) * pxPct;
+      const imgY = y + (tileH - sh) * pyPct;
+      ctx.drawImage(img, imgX, imgY, sw, sh);
       ctx.restore();
     } else if (participant) {
       // No photo uploaded this hour

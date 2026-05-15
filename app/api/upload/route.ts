@@ -48,17 +48,17 @@ export async function POST(req: NextRequest) {
       put(thumbPath, file, { access: "public" }),
     ]);
 
-    // Upsert — replace existing upload for this hour
+    // Upsert — replace existing upload for this hour; reset pan position to centre
     await Upload.findOneAndUpdate(
       { roomCode, slotIndex: participant.slotIndex, hourBucket },
-      { nickname, url: blob.url, thumbnailUrl: thumbBlob.url, uploadedAt: now },
+      { nickname, url: blob.url, thumbnailUrl: thumbBlob.url, uploadedAt: now, posX: 50, posY: 50 },
       { upsert: true, returnDocument: "after" }
     );
 
     // Notify SSE clients
-    notifyRoom(roomCode, { type: "upload", slotIndex: participant.slotIndex, hourBucket, url: blob.url, thumbnailUrl: thumbBlob.url, nickname });
+    notifyRoom(roomCode, { type: "upload", slotIndex: participant.slotIndex, hourBucket, url: blob.url, thumbnailUrl: thumbBlob.url, nickname, posX: 50, posY: 50 });
 
-    return NextResponse.json({ url: blob.url, thumbnailUrl: thumbBlob.url, hourBucket });
+    return NextResponse.json({ url: blob.url, thumbnailUrl: thumbBlob.url, hourBucket, posX: 50, posY: 50 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

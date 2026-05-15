@@ -37,6 +37,8 @@ const UPLOADS = Array.from({ length: HOURS }, (_, hour) =>
       thumbnailUrl: `https://picsum.photos/seed/${seed}/400/400`,
       nickname: p.nickname,
       uploadedAt: new Date(Date.now() - (HOURS - 1 - hour) * 3600_000).toISOString(),
+      posX: 50,
+      posY: 50,
     };
   })
 ).flat();

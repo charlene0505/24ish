@@ -10,6 +10,8 @@ interface Upload {
   url: string;
   thumbnailUrl: string;
   nickname: string;
+  posX: number;
+  posY: number;
 }
 interface Participant { slotIndex: number; nickname: string; }
 interface Room {
@@ -96,7 +98,7 @@ export default function EndedGallery({ room, participants, uploads }: Props) {
 
       const bucketUploads = uploads
         .filter((u) => u.hourBucket === bucket)
-        .map((u) => ({ slotIndex: u.slotIndex, url: u.thumbnailUrl }));
+        .map((u) => ({ slotIndex: u.slotIndex, url: u.thumbnailUrl, posX: u.posX, posY: u.posY }));
 
       generateCollage(participants, bucketUploads, cols, rows, bucketLabel(bucket, room.bucketMinutes))
         .then((blob) => {
@@ -158,7 +160,7 @@ export default function EndedGallery({ room, participants, uploads }: Props) {
       const bucket = buckets[idx];
       const bucketUploads = uploads
         .filter((u) => u.hourBucket === bucket)
-        .map((u) => ({ slotIndex: u.slotIndex, url: u.url }));
+        .map((u) => ({ slotIndex: u.slotIndex, url: u.url, posX: u.posX, posY: u.posY }));
       const blob = await generateCollage(
         participants, bucketUploads, cols, rows,
         bucketLabel(bucket, room.bucketMinutes),
@@ -192,17 +194,17 @@ export default function EndedGallery({ room, participants, uploads }: Props) {
     .sort((a, b) => Math.abs(b.offset) - Math.abs(a.offset)); // furthest first
 
   return (
-    <div className="h-full flex flex-col items-center p-3">
+    <div className="h-full flex flex-col items-center gap-3 p-3">
 
       {/* Top spacer – pushes the tight group toward vertical centre */}
       <div className="flex-1" />
 
       {/* Tight group: label + card + dots all directly adjacent */}
-      <div className="w-full flex flex-col items-center gap-2">
+      <div className="w-full flex flex-col items-center gap-3">
 
         {/* Hour label + position */}
         <div className="text-center">
-          <p className="text-white font-semibold text-sm">
+          <p className="text-neutral-800 font-semibold text-sm">
             {bucketLabel(buckets[idx], room.bucketMinutes)}
           </p>
           <p className="text-neutral-500 text-xs mt-0.5">
@@ -213,8 +215,8 @@ export default function EndedGallery({ room, participants, uploads }: Props) {
         {/* Card fan – natural square sized by width; px-6 gives side breathing room */}
         <div className="w-full px-6">
           <div
-            className="relative w-full max-w-sm mx-auto"
-            style={{ aspectRatio: "1 / 1" }}
+            className="relative mx-auto"
+            style={{ aspectRatio: "1080 / 1350", width: "min(100%, min(512px, calc(62dvh * 0.8)))" }}
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
@@ -295,14 +297,13 @@ export default function EndedGallery({ room, participants, uploads }: Props) {
 
       </div>{/* end tight group */}
 
-      {/* Bottom spacer – separates button from the tight group */}
+      {/* Spacer – pushes buttons to the bottom */}
       <div className="flex-1" />
 
-      {/* Download button */}
       <button
         onClick={downloadCurrent}
         disabled={downloading}
-        className="w-full max-w-sm shrink-0 mb-1 bg-fuchsia-400 hover:bg-fuchsia-500 active:bg-fuchsia-600 disabled:opacity-50 text-black font-semibold py-2.5 rounded-xl transition-colors"
+        className="w-48 shrink-0 bg-fuchsia-400 hover:bg-fuchsia-500 active:bg-fuchsia-600 disabled:opacity-50 text-black font-semibold py-2 rounded-xl transition-colors"
       >
         {downloading ? "Saving…" : "Save This Hour"}
       </button>
