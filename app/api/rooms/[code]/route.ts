@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import { Room } from "@/lib/models/Room";
 import { Participant } from "@/lib/models/Participant";
 import { Upload } from "@/lib/models/Upload";
-import { notifyRoom } from "@/app/api/upload/route";
+import { notifyRoom } from "@/lib/pusher-server";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   try {

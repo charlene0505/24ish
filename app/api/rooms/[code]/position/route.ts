@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Participant } from "@/lib/models/Participant";
 import { Upload } from "@/lib/models/Upload";
-import { notifyRoom } from "@/app/api/upload/route";
+import { notifyRoom } from "@/lib/pusher-server";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   try {

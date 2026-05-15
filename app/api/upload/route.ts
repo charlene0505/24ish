@@ -5,6 +5,9 @@ import { Room } from "@/lib/models/Room";
 import { Participant } from "@/lib/models/Participant";
 import { Upload } from "@/lib/models/Upload";
 import { getHourBucket } from "@/lib/utils";
+import { notifyRoom } from "@/lib/pusher-server";
+
+export { notifyRoom } from "@/lib/pusher-server";
 
 const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/heic", "image/heif", "image/webp"]);
 
@@ -38,11 +41,10 @@ export async function POST(req: NextRequest) {
 
     const hourBucket = getHourBucket(now, (room as any).bucketMinutes ?? 60);
     const ext = file.type === "image/png" ? "png" : "jpg";
-    const ts = Date.now(); // unique per upload — prevents browser cache serving stale image
+    const ts = Date.now();
     const path = `${roomCode}/${participant.slotIndex}/${hourBucket}_${ts}.${ext}`;
     const thumbPath = `${roomCode}/${participant.slotIndex}/${hourBucket}_${ts}_thumb.${ext}`;
 
-    // Upload full image and thumbnail in parallel
     const [blob, thumbBlob] = await Promise.all([
       put(path, file, { access: "public" }),
       put(thumbPath, file, { access: "public" }),
@@ -55,21 +57,19 @@ export async function POST(req: NextRequest) {
       { upsert: true, returnDocument: "after" }
     );
 
-    // Notify SSE clients
-    notifyRoom(roomCode, { type: "upload", slotIndex: participant.slotIndex, hourBucket, url: blob.url, thumbnailUrl: thumbBlob.url, nickname, posX: 50, posY: 50 });
+    notifyRoom(roomCode, {
+      type: "upload",
+      slotIndex: participant.slotIndex,
+      hourBucket,
+      url: blob.url,
+      thumbnailUrl: thumbBlob.url,
+      nickname,
+      posX: 50,
+      posY: 50,
+    });
 
     return NextResponse.json({ url: blob.url, thumbnailUrl: thumbBlob.url, hourBucket, posX: 50, posY: 50 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
-}
-
-// SSE broadcaster (in-process for MVP)
-export const sseClients = new Map<string, Set<(data: string) => void>>();
-
-export function notifyRoom(roomCode: string, payload: object) {
-  const clients = sseClients.get(roomCode);
-  if (!clients) return;
-  const data = `data: ${JSON.stringify(payload)}\n\n`;
-  clients.forEach((send) => send(data));
 }

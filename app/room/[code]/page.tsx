@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CubeTile from "@/components/CubeTile";
 import EndedGallery from "@/components/EndedGallery";
 import { gridLayout, getHourBucket, msUntilNextBucket } from "@/lib/utils";
+import { getPusherClient } from "@/lib/pusher-client";
 
 interface Room {
   code: string;
@@ -49,7 +50,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [starting, setStarting] = useState(false);
   // Duration the creator picks before starting (hours); null = not yet chosen
   const [duration, setDuration] = useState<12 | 24 | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
 
   const bucketMinutes = room?.bucketMinutes ?? 60;
   const isTestMode = bucketMinutes === 2;
@@ -77,36 +77,44 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       .finally(() => setLoading(false));
   }, [session, code]);
 
-  // SSE for live updates
+  // Pusher for live updates
   useEffect(() => {
     if (!session) return;
-    const es = new EventSource(`/api/events/${code}`);
-    eventSourceRef.current = es;
-    es.onmessage = (e) => {
-      const payload = JSON.parse(e.data);
-      if (payload.type === "upload") {
-        setUploads((prev) => {
-          const next = prev.filter((u) => !(u.slotIndex === payload.slotIndex && u.hourBucket === payload.hourBucket));
-          return [...next, payload];
-        });
-      } else if (payload.type === "start") {
-        setRoom((prev) => prev ? { ...prev, startTime: payload.startTime, endTime: payload.endTime } : prev);
-      } else if (payload.type === "join") {
-        setParticipants((prev) => {
-          if (prev.find((p) => p.nickname === payload.nickname)) return prev;
-          return [...prev, { nickname: payload.nickname, slotIndex: payload.slotIndex }];
-        });
-      } else if (payload.type === "position") {
-        setUploads((prev) =>
-          prev.map((u) =>
-            u.slotIndex === payload.slotIndex && u.hourBucket === payload.hourBucket
-              ? { ...u, posX: payload.posX, posY: payload.posY }
-              : u,
-          ),
-        );
-      }
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(`room-${code.toUpperCase()}`);
+
+    channel.bind("upload", (data: any) => {
+      setUploads((prev) => {
+        const next = prev.filter((u) => !(u.slotIndex === data.slotIndex && u.hourBucket === data.hourBucket));
+        return [...next, { ...data }];
+      });
+    });
+
+    channel.bind("start", (data: any) => {
+      setRoom((prev) => prev ? { ...prev, startTime: data.startTime, endTime: data.endTime } : prev);
+    });
+
+    channel.bind("join", (data: any) => {
+      setParticipants((prev) => {
+        if (prev.find((p) => p.nickname === data.nickname)) return prev;
+        return [...prev, { nickname: data.nickname, slotIndex: data.slotIndex }];
+      });
+    });
+
+    channel.bind("position", (data: any) => {
+      setUploads((prev) =>
+        prev.map((u) =>
+          u.slotIndex === data.slotIndex && u.hourBucket === data.hourBucket
+            ? { ...u, posX: data.posX, posY: data.posY }
+            : u,
+        ),
+      );
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(`room-${code.toUpperCase()}`);
     };
-    return () => es.close();
   }, [session, code]);
 
   async function handleStart() {
