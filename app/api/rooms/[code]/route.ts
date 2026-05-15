@@ -33,10 +33,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     const room = await Room.findOne({ code: roomCode }).lean() as any;
     if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
     if (room.creatorNickname !== nickname) return NextResponse.json({ error: "Only the creator can start the room" }, { status: 403 });
-    if (room.startTime) return NextResponse.json({ error: "Room already started" }, { status: 409 });
+
+    // Block if the room is currently active (started but not yet ended)
+    const now = new Date();
+    if (room.startTime && room.endTime && now >= new Date(room.startTime) && now <= new Date(room.endTime)) {
+      return NextResponse.json({ error: "Room is already active" }, { status: 409 });
+    }
 
     const isTestMode = room.bucketMinutes === 2;
     const validDurations = isTestMode ? [10] : [12 * 60, 24 * 60];
+    // On restart, fall back to the room's stored duration so no re-selection is needed
     const resolvedDuration = durationMinutes ?? room.durationMinutes;
     if (!resolvedDuration || !validDurations.includes(resolvedDuration)) {
       return NextResponse.json({ error: "Please choose a duration before starting" }, { status: 400 });
