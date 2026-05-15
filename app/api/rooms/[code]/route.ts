@@ -35,8 +35,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     if (room.creatorNickname !== nickname) return NextResponse.json({ error: "Only the creator can start the room" }, { status: 403 });
 
     // Block if the room is currently active (started but not yet ended)
-    const now2 = new Date();
-    if (room.startTime && room.endTime && now2 >= new Date(room.startTime) && now2 <= new Date(room.endTime)) {
+    const now = new Date();
+    if (room.startTime && room.endTime && now >= new Date(room.startTime) && now <= new Date(room.endTime)) {
       return NextResponse.json({ error: "Room is already active" }, { status: 409 });
     }
 

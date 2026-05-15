@@ -10,6 +10,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
     const roomCode = code.toUpperCase();
     const { nickname, slotIndex, hourBucket, posX, posY } = await req.json();
 
+    if (!nickname || typeof slotIndex !== "number" || !hourBucket) {
+      return NextResponse.json({ error: "nickname, slotIndex and hourBucket are required" }, { status: 400 });
+    }
     if (typeof posX !== "number" || typeof posY !== "number") {
       return NextResponse.json({ error: "posX and posY are required numbers" }, { status: 400 });
     }
