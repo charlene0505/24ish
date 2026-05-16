@@ -298,7 +298,7 @@ export default function CubeTile({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+        accept="image/*"
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
       />
