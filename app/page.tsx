@@ -1,13 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import HowItWorksModal from "@/components/HowItWorksModal";
 
 type Tab = "create" | "join";
+
+const GUIDE_SEEN_KEY = "ohap_guide_seen";
 
 export default function Home() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("create");
+  const [showGuide, setShowGuide] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem(GUIDE_SEEN_KEY)) setShowGuide(true);
+  }, []);
+
+  function closeGuide() {
+    localStorage.setItem(GUIDE_SEEN_KEY, "1");
+    setShowGuide(false);
+  }
 
   // Create form
   const [nickname, setNickname] = useState("");
@@ -70,10 +83,20 @@ export default function Home() {
 
   return (
     <main className="flex flex-col items-center justify-center p-6 overflow-hidden" style={{ height: "100dvh" }}>
+      {showGuide && <HowItWorksModal onClose={closeGuide} />}
       <div className="w-full max-w-sm">
-        <h1 className="text-3xl font-bold text-center mb-1 text-black">
-          OneHourAPicture
-        </h1>
+        <div className="relative mb-1">
+          <h1 className="text-3xl font-bold text-center text-black">
+            OneHourAPicture
+          </h1>
+          <button
+            onClick={() => setShowGuide(true)}
+            aria-label="How it works"
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border border-neutral-700 text-neutral-800 text-xs font-bold hover:bg-fuchsia-200 transition-colors"
+          >
+            ?
+          </button>
+        </div>
         <p className="text-gray-800 text-center text-sm mb-8">
           One photo, every hour, with your crew.
         </p>
